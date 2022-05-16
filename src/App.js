@@ -5,7 +5,6 @@ import { ethers } from "ethers";
 let contract_address = "0xa0C7ED306A952a1F3866a8924BEb6E43bd983192";
 let token_address = "0x81956a57C71Aad209fCaa5c549C558DB95f86b00";
 const web3 = require('web3');
-var Contract = require('web3-eth-contract');
 
 const tcrABI = require("./abis/Tcr.json").abi;
 const tokenABI = require("./abis/Token.json").abi;
@@ -143,6 +142,9 @@ function App() {
 							const signer = provider.getSigner(0);
 							let connected = await tcr.connect(signer);
 							try {
+								let connected_token = await token.connect(signer);
+								console.log('approving...', connected.address, 100);
+								await connected_token.approve(connected.address, 100);
 								await connected.challenge(ethers.utils.hexZeroPad(web3.utils.fromAscii(l.name), 32), 100);
 							} catch (e) {
 								console.log(e);
@@ -153,6 +155,9 @@ function App() {
 							const signer = provider.getSigner(0);
 							let connected = await tcr.connect(signer);
 							try {
+								let connected_token = await token.connect(signer);
+								console.log('approving...', connected.address, 10);
+								await connected_token.approve(connected.address, 10);
 								await connected.vote(ethers.utils.hexZeroPad(web3.utils.fromAscii(l.name), 32), 10, true);
 							} catch (e) {
 								console.log(e);
@@ -162,12 +167,15 @@ function App() {
 							const signer = provider.getSigner(0);
 							let connected = await tcr.connect(signer);
 							try {
+								let connected_token = await token.connect(signer);
+								console.log('approving...', connected.address, 10);
+								await connected_token.approve(connected.address, 10);
 								await connected.vote(ethers.utils.hexZeroPad(web3.utils.fromAscii(l.name), 32), 10, false);
 							} catch (e) {
 								console.log(e);
 							}
-						}}>Vote Agaist</button> : <div>.</div>}</div>
-						<div className="column">{l.canBeWL || (!l.canBeWL && (Number(l.challengeId.toString()) > 0)) ? <button onClick={
+						}}>Vote Against</button> : <div>.</div>}</div>
+						<div className="column">{!l.whitelisted && (l.canBeWL || (!l.canBeWL && (Number(l.challengeId.toString()) > 0))) ? <button onClick={
 							async () => {
 								const signer = provider.getSigner(0);
 								let connected = await tcr.connect(signer);
@@ -201,8 +209,8 @@ function App() {
 						const signer = provider.getSigner(0);
 						let connected_tcr = await tcr.connect(signer);
 						let connected_token = await token.connect(signer);
-						// console.log('approving...', connected_tcr.address, 100);
-						// await connected_token.approve(connected_tcr.address, 100);
+						console.log('approving...', connected_tcr.address, 100);
+						await connected_token.approve(connected_tcr.address, 100);
 						console.log('Proposing...', newlistingname, web3.utils.asciiToHex(newlistingname))
 						await connected_tcr.propose(ethers.utils.hexZeroPad(web3.utils.fromAscii(newlistingname), 32), 100, newlistingname, { from: signer.address })
 						setNewListingName("")

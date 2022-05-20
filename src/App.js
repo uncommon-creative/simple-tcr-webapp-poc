@@ -2,8 +2,8 @@ import logo from './logo.svg';
 import './App.css';
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
-let contract_address = "0xa0C7ED306A952a1F3866a8924BEb6E43bd983192";
-let token_address = "0x81956a57C71Aad209fCaa5c549C558DB95f86b00";
+let contract_address = "0x3b34C5848D6FE80C719E7DB54490823258fB5BE6";
+let token_address = "0x5CC1868e94EA2Fabd8B2EC893D563db0116a07A2";
 const web3 = require('web3');
 
 const tcrABI = require("./abis/Tcr.json").abi;
@@ -128,8 +128,8 @@ function App() {
 						<div className="column"><b>Approval status</b></div>
 						<div className="column"><b>Challenge proposal</b></div>
 						<div className="column"><b>Challenge Id</b></div>
-						<div className="column"><b>Vote for</b></div>
-						<div className="column"><b>Vote against</b></div>
+						<div className="column"><b>Vote 10 for</b></div>
+						<div className="column"><b>Vote 10 against</b></div>
 						<div className="column"><b>Update status</b></div>
 						<div className="column"><b>Proposer address</b></div>
 						<div className="column"><b>Token balance</b></div>
@@ -158,7 +158,11 @@ function App() {
 								let connected_token = await token.connect(signer);
 								console.log('approving...', connected.address, 10);
 								await connected_token.approve(connected.address, 10);
-								await connected.vote(ethers.utils.hexZeroPad(web3.utils.fromAscii(l.name), 32), 10, true);
+								let transaction = await connected.vote(ethers.utils.hexZeroPad(web3.utils.fromAscii(l.name), 32), 10, true);
+								let tx = await transaction.wait()
+								console.log('tx', tx)
+								let event = tx.events[0];
+								console.log('event for', event);
 							} catch (e) {
 								console.log(e);
 							}
@@ -170,7 +174,11 @@ function App() {
 								let connected_token = await token.connect(signer);
 								console.log('approving...', connected.address, 10);
 								await connected_token.approve(connected.address, 10);
-								await connected.vote(ethers.utils.hexZeroPad(web3.utils.fromAscii(l.name), 32), 10, false);
+								let transaction = await connected.vote(ethers.utils.hexZeroPad(web3.utils.fromAscii(l.name), 32), 10, false);
+								let tx = await transaction.wait()
+								console.log('tx', tx)
+								let event = tx.events[0];
+								console.log('event against', event);
 							} catch (e) {
 								console.log(e);
 							}

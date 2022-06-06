@@ -33,9 +33,14 @@
 }
 .column {
   float: left;
-  width: 11.1111%;
+  width: 9.090909%;
 }
-
+.avatar {
+  vertical-align: middle;
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+}
 /* Clear floats after the columns */
 .row:after {
   content: "";
@@ -59,4 +64,7 @@
   text-decoration: none;
   display: inline-block;
   font-size: 16px;
+}
+.button.clicked {
+  background-color: red;
 }

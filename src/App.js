@@ -43,6 +43,9 @@ function App() {
 	const [currentPaidAction, setCurrentPaidAction] = useState("propose");
 	const [currentChallengedListing, setCurrentChallengedListing] = useState("");
 	const [currentVotedListing, setCurrentVotedListing] = useState("");
+	const [updatingAllowance, setUpdatingAllowance] = useState(false);
+
+	const [currentStake, setCurrentStake] = useState(0);
 
 	const [guild, setGuild] = useState({
 		name: "",
@@ -95,18 +98,17 @@ function App() {
 			}
 			tmp.push(detail);
 		}
+		let allowance = await getAllowance(provider, account, tcr, token);
+		setCurrentAllowance(allowance);
 		setListings(tmp);
 	}
 	useEffect(() => {
 		(async function () {
-			if (provider) {
-				console.log('Guild details:', guild)
-				console.log(currentAllowance, guild.minDeposit)
-
+			if (provider && tcr) {
 				await updateListings()
 			}
 		})();
-	}, [tcr])
+	}, [tcr, provider])
 
 	useEffect(() => {
 		if (!window.ethereum) {
@@ -162,9 +164,14 @@ function App() {
 				setTCR(t);
 				let tk = new ethers.Contract(details[1], tokenABI, provider);
 				setToken(tk);
-
 				let allowance = await getAllowance(provider, account, t, tk);
 				setCurrentAllowance(allowance);
+				// let connected_token = await tk.connect(signer);
+				// connected_token.on("Approval", (_owner, _spender, _amount) => {
+				// 	console.log('event arguments', _owner, _spender, Number(_amount.toString()));
+				// 	setCurrentAllowance(Number(_amount.toString()));
+				// });
+
 			}
 		})();
 	}, [provider, account]);
@@ -183,18 +190,19 @@ function App() {
 		return (
 			<button onClick={
 				async () => {
-					await stake(props.provider, props.tcr, props.token, props.guild.minDeposit);
+					console.log('before Staking...', currentAllowance + currentStake)
+					await stake(props.provider, props.tcr, props.token, currentAllowance + currentStake);
 					const signer = provider.getSigner(0);
-
-					let connected_tcr = await tcr.connect(signer);
 					let connected_token = await token.connect(signer);
-					connected_token.once("Approval", (_owner, _spender, _amount) => {
+					setUpdatingAllowance(true);
+					setCurrentStake(0);
+					connected_token.on("Approval", (_owner, _spender, _amount) => {
 						console.log('event arguments', _owner, _spender, Number(_amount.toString()));
 						setCurrentAllowance(Number(_amount.toString()));
+						setUpdatingAllowance(false);
 					});
-
 				}
-			} >Stake {props.guild.minDeposit}</button>
+			} >{props.purpose}</button>
 		);
 
 	}
@@ -236,12 +244,31 @@ function App() {
 					}>Approve</button>
 					<button onClick={closeModal}>Close</button>
 
-				</div></Modal>
+				</div>
+			</Modal>
 			<header className="App-header">
-				<p>
-					Current account {account}
-				</p>
+				<div className="row" key={"h"}>
+					<div className="hcolumn">
+						<div className="large">Current account {account}</div>
+					</div>
+					<div className="hcolumn">
+						<div className="large">Current stake: {currentAllowance}</div>
+					</div>
+					<div className="hcolumn">
 
+						<input value={currentStake}
+							onChange={(e) => {
+								if (!isNaN(Number(e.target.value))) {
+									setCurrentStake(Number(e.target.value));
+								} else {
+									alert('Invalid stake')
+								}
+							}} />
+						<StakeButton purpose={"Add to stake"} guild={guild} provider={provider} account={account} tcr={tcr} token={token} />
+
+					</div>
+
+				</div>
 			</header>
 			<div>
 				<p>Current Listings</p>
@@ -298,62 +325,78 @@ function App() {
 
 						}
 						</div>
-						<div className="column">{(l.whitelisted == false && Number(l.challengeId.toString()) === 0) && currentAllowance >= guild.minDeposit ? <button onClick={async () => {
-							const signer = provider.getSigner(0);
-							let connected = await tcr.connect(signer);
-							try {
-								setCurrentPaidAction("challenge")
-								if (currentAllowance < 100) {
-									setRequiredAllowance(100)
-									openModal();
-								} else {
-									try {
-										await connected.challenge(ethers.utils.hexZeroPad(web3.utils.fromAscii(l.name), 32), 100);
-									} catch (e) {
-										console.log('challenge exception', e.data.message);
-										alert(e.data.message)
-									}
-								}
-							} catch (e) {
-								console.log(e);
-							}
-						}}>Challenge</button> : (l.whitelisted === false ? <div><StakeButton guild={guild} provider={provider} account={account} tcr={tcr} token={token} amount={guild.minDeposit} /></div> : <div>.</div>)}</div>
+						<div className="column">
+							{(l.whitelisted == false && Number(l.challengeId.toString()) === 0) ?
+								<div class="tooltip">
+									{!(currentAllowance >= 10) && <span class="tooltiptext">You need at least {guild.minDeposit} tokens on stake</span>}
+									<button disabled={!(currentAllowance >= guild.minDeposit)} onClick={async () => {
+										const signer = provider.getSigner(0);
+										let connected = await tcr.connect(signer);
+										try {
+											setCurrentPaidAction("challenge")
+											if (currentAllowance < 100) {
+												setRequiredAllowance(100)
+												openModal();
+											} else {
+												try {
+													await connected.challenge(ethers.utils.hexZeroPad(web3.utils.fromAscii(l.name), 32), 100);
+												} catch (e) {
+													console.log('challenge exception', e.data.message);
+													alert(e.data.message)
+												}
+											}
+										} catch (e) {
+											console.log(e);
+										}
+									}}>Challenge</button> </div> : <div>.</div>}</div>
 						<div className="column">{l.challengeId.toString()}</div>
-						<div className="column">{l.whitelisted === false && Number(l.challengeId.toString()) > 0 && currentAllowance >= 10 ? <button onClick={async () => {
-							const signer = provider.getSigner(0);
-							let connected = await tcr.connect(signer);
-							try {
-								setCurrentPaidAction("vote")
+						<div className="column">
+							{l.whitelisted === false && Number(l.challengeId.toString()) > 0 ?
+								<div class="tooltip">
+									{!(currentAllowance >= 10) && <span class="tooltiptext">You need at least 10 tokens on stake</span>}
 
-								let transaction = await connected.vote(ethers.utils.hexZeroPad(web3.utils.fromAscii(l.name), 32), 10, true);
-								let tx = await transaction.wait()
-								console.log('tx', tx)
-								let event = tx.events[0];
-								console.log('event for', event);
+									<button disabled={!(currentAllowance >= 10)} onClick={async () => {
+										const signer = provider.getSigner(0);
+										let connected = await tcr.connect(signer);
+										try {
+											setCurrentPaidAction("vote")
+											let transaction = await connected.vote(ethers.utils.hexZeroPad(web3.utils.fromAscii(l.name), 32), 10, true);
+											let tx = await transaction.wait()
+											console.log('tx', tx)
+											let event = tx.events[0];
+											console.log('event for', event);
 
-							} catch (e) {
-								console.log(e);
-								alert(e.data.message);
-							}
-						}}>Vote For</button> : (l.whitelisted === false && Number(l.challengeId.toString()) > 0 ? <div><StakeButton guild={guild} provider={provider} account={account} tcr={tcr} token={token} amount={10} /></div> : <div>.</div>)}</div>
-						<div className="column">{l.whitelisted === false && Number(l.challengeId.toString()) > 0 && currentAllowance >= 10 ? <button onClick={async () => {
-							const signer = provider.getSigner(0);
-							let connected = await tcr.connect(signer);
-							try {
-								setCurrentPaidAction("vote")
+										} catch (e) {
+											console.log(e);
+											alert(e.data.message);
+										}
+									}}>Vote For</button>
+								</div> : <div>.</div>}
+						</div>
+						<div className="column">
+							{l.whitelisted === false && Number(l.challengeId.toString()) > 0 ?
+								<div class="tooltip">
+									{!(currentAllowance >= 10) && <span class="tooltiptext">You need at least 10 tokens on stake</span>}
 
-								let transaction = await connected.vote(ethers.utils.hexZeroPad(web3.utils.fromAscii(l.name), 32), 10, false);
-								let tx = await transaction.wait()
-								console.log('tx', tx)
-								let event = tx.events[0];
-								console.log('event against', event);
+									<button disabled={!(currentAllowance >= 10)} onClick={async () => {
+										const signer = provider.getSigner(0);
+										let connected = await tcr.connect(signer);
+										try {
+											setCurrentPaidAction("vote")
 
-							} catch (e) {
-								console.log(e);
-								alert(e.data.message);
+											let transaction = await connected.vote(ethers.utils.hexZeroPad(web3.utils.fromAscii(l.name), 32), 10, false);
+											let tx = await transaction.wait()
+											console.log('tx', tx)
+											let event = tx.events[0];
+											console.log('event against', event);
 
-							}
-						}}>Vote Against</button> : (l.whitelisted === false && Number(l.challengeId.toString()) > 0 ? <div><StakeButton guild={guild} provider={provider} account={account} tcr={tcr} token={token} amount={10} /></div> : <div>.</div>)}</div>
+										} catch (e) {
+											console.log(e);
+											alert(e.data.message);
+
+										}
+									}}>Vote Against</button> </div> : <div>.</div>}
+						</div>
 						<div className="column">{!l.whitelisted && (l.canBeWL || (!l.canBeWL && (Number(l.challengeId.toString()) > 0)) || l.status === "under-review") ? <button onClick={
 							async () => {
 								const signer = provider.getSigner(0);
@@ -383,19 +426,28 @@ function App() {
 						setNewListingName(e.target.value);
 					}}
 				/>
-				<p>{newlistingname !== "" && currentAllowance >= guild.minDeposit ? (<button onClick={
-					async () => {
-						setCurrentPaidAction("propose");
-						console.log('onClick proposing', currentAllowance);
-						const signer = provider.getSigner(0);
-						let allowance = await getAllowance(provider, account, tcr, token);
-						let connected_tcr = await tcr.connect(signer);
-						console.log('Proposing...', newlistingname, web3.utils.asciiToHex(newlistingname))
-						await connected_tcr.propose(ethers.utils.hexZeroPad(web3.utils.fromAscii(newlistingname), 32), guild.minDeposit, newlistingname, { from: signer.address })
-						setNewListingName("");
-						setCurrentAllowance(allowance);
-					}
-				}>Propose Listing</button>) : <StakeButton guild={guild} provider={provider} account={account} tcr={tcr} token={token} amount={guild.minDeposit} />}</p>
+				<p>
+					<div class="tooltip">
+						<span class="tooltiptext">You need at least {guild.minDeposit} tokens on stake</span>
+
+						{(<button
+							disabled={!(newlistingname !== "" && currentAllowance >= guild.minDeposit)}
+							onClick={
+								async () => {
+									setCurrentPaidAction("propose");
+									console.log('onClick proposing', currentAllowance);
+									const signer = provider.getSigner(0);
+									let connected_tcr = await tcr.connect(signer);
+									console.log('Proposing...', newlistingname, web3.utils.asciiToHex(newlistingname))
+									await connected_tcr.propose(ethers.utils.hexZeroPad(web3.utils.fromAscii(newlistingname), 32), guild.minDeposit, newlistingname, { from: signer.address })
+									setNewListingName("");
+									let allowance = await getAllowance(provider, account, tcr, token);
+									setCurrentAllowance(allowance);
+									setCurrentStake(allowance);
+								}
+							}>Propose Listing</button>)}
+					</div>
+				</p>
 			</div>
 			<hr />
 
@@ -407,6 +459,7 @@ async function stake(provider, tcr, token, amount) {
 	const signer = provider.getSigner(0);
 	let connected_tcr = await tcr.connect(signer);
 	let connected_token = await token.connect(signer);
+	console.log('Staking...', amount);
 	await connected_token.approve(connected_tcr.address, amount);
 
 }
@@ -425,5 +478,9 @@ async function getAllowance(provider, current_address, tcr, token) {
 }
 
 export default App;
-// under-review - approved 
+// under-review - approved
+
+// separare bottone propose stake
+// provare:
+
 

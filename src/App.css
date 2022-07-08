@@ -12,7 +12,15 @@
     animation: App-logo-spin infinite 20s linear;
   }
 }
-
+div.large {
+  font-size: large;
+}
+div.medium {
+  font-size: medium;
+}
+div.small {
+  font-size: small;
+}
 .App-header {
   background-color: #342c28;
   min-height: 10vh;
@@ -34,6 +42,12 @@
 .column {
   float: left;
   width: 9.090909%;
+}
+.hcolumn {
+  float: left;
+  width: 50%;
+  text-align: left;
+  font-size: small;
 }
 .avatar {
   vertical-align: middle;
@@ -67,4 +81,40 @@
 }
 .button.clicked {
   background-color: red;
+}
+
+.tooltip {
+  position: relative;
+  display: inline-block;
+  border-bottom: 1px dotted black;
+}
+
+.tooltip .tooltiptext {
+  visibility: hidden;
+  width: 120px;
+  background-color: black;
+  color: #fff;
+  text-align: center;
+  border-radius: 6px;
+  padding: 5px 0;
+  position: absolute;
+  z-index: 1;
+  bottom: 150%;
+  left: 50%;
+  margin-left: -60px;
+}
+
+.tooltip .tooltiptext::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: black transparent transparent transparent;
+}
+
+.tooltip:hover .tooltiptext {
+  visibility: visible;
 }
